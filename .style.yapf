@@ -1,0 +1,20 @@
+[style] 
+arithmetic_precedence_indication = true 
+based_on_style = facebook 
+blank_lines_around_top_level_definition = 2 
+blank_lines_between_top_level_imports_and_variables = 2 
+column_limit = 110
+indent_width = 4 
+allow_multiline_dictionary_keys = true 
+allow_split_before_dict_value = false 
+blank_line_before_class_docstring = false 
+blank_line_before_module_docstring = true 
+blank_line_before_nested_class_or_def = false 
+coalesce_brackets = true 
+dedent_closing_brackets = true 
+each_dict_entry_on_separate_line = true 
+indent_dictionary_value = true 
+split_before_bitwise_operator = true
+split_before_logical_operator = true
+split_before_expression_after_opening_paren = true 
+split_complex_comprehension = true
