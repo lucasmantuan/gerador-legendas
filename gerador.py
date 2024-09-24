@@ -1,16 +1,37 @@
 import argparse
+import configparser
 import openai
 import os
 import re
+import rich
 import subprocess
+import sys
 import whisper
 
 
-client = openai.OpenAI(api_key=os.environ['OPENAI_API_KEY'], )
+def except_hook(type, value, traceback):
+    console.print(f"\n[bold red]Ocorreu um erro do tipo {type.__name__}.")
+
+
+def config_client(api_key):
+    try:
+        client = openai.OpenAI(api_key=api_key)
+        return client
+    except Exception as e:
+        raise RuntimeError("Erro ao configurar o client da Openai.") from e
+
+
+sys.excepthook = except_hook
+console = rich.get_console()
+config = configparser.ConfigParser()
+config.read('config.ini')
+api_key = config['DEFAULT']['OPENAI_API_KEY']
+# client = config_client(api_key)
+client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Gerador e Tradutor de Legendas")
+    parser = argparse.ArgumentParser(description="Gerador e Tradutor de Legendas.")
     parser.add_argument("-i", \
         dest="video_path", \
         required=True, \
@@ -19,20 +40,21 @@ def parse_args():
         dest="model_name", \
         required=False, \
         default="base", \
-        help="modelo a ser utilizado (base, small, medium, large)"
+        help="modelo a ser utilizado"
     )
     parser.add_argument("-p", \
         dest="prompt_path", \
         required=True, \
-        help="caminho para o arquivo com o prompt")
+        help="caminho para o arquivo do prompt")
     parser.add_argument("-c", \
         dest="context_path", \
         required=True, \
-        help="caminho para o arquivo de contexto")
+        help="caminho para o arquivo do contexto")
     return parser.parse_args()
 
 
 def extract_audio(video_path, audio_path):
+    global spinner_done
     try:
         command = [
             'ffmpeg', '-y', \
@@ -43,7 +65,7 @@ def extract_audio(video_path, audio_path):
             audio_path
         ]
         subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(f"Áudio extraído com sucesso.\n")
+        console.print(f"[blue]Áudio extraído com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao extrair o áudio.") from e
 
@@ -67,7 +89,7 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
                 end = format_timestamp(segment['end'])
                 text = segment['text'].strip()
                 subtitle_file.write(f"{i+1}\n{start} --> {end}\n{text}\n\n")
-        print("Transcrição e legenda gerada com sucesso.\n")
+        console.print(f"[blue]Transcrição e legenda gerada com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao transcrever o áudio e gerar a legenda.") from e
 
@@ -82,7 +104,7 @@ def read_subtitle_file(file_path):
             )
             entries = pattern.findall(content)
             subtitles = [{'index': e[0], 'time': e[1], 'text': e[2].strip()} for e in entries]
-        print("Arquivo da legenda lido com sucesso.\n")
+        console.print(f"[blue]Arquivo da legenda lido com sucesso.\n")
         return subtitles
     except Exception as e:
         raise RuntimeError("Erro ao ler o arquivo da legenda.") from e
@@ -91,7 +113,6 @@ def read_subtitle_file(file_path):
 def read_text_file(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            print("Arquivo de texto lido com sucesso.\n")
             return f.read()
     except Exception as e:
         raise RuntimeError("Erro ao ler o arquivo de texto.") from e
@@ -141,7 +162,7 @@ def translate_text(messages, output_file_path):
         translated_text = response.choices[0].message.content.strip()
         with open(output_file_path, 'w', encoding='utf-8') as file:
             file.write(translated_text)
-        print("Legenda traduzido com sucesso.\n")
+        console.print(f"[blue]Legenda traduzida com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao traduzir a legenda.") from e
 
@@ -183,7 +204,7 @@ def save_subtitle(subtitles, file_path):
         with open(file_path, 'w', encoding='utf-8') as f:
             for subtitle in subtitles:
                 f.write(f"{subtitle['index']}\n{subtitle['time']}\n{subtitle['text']}\n\n")
-            print("Legenda traduzida salva com sucesso.\n")
+            console.print(f"[blue]Legenda traduzida salva com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao salvar a legenda traduzida.") from e
 
@@ -206,34 +227,39 @@ def main():
         model_name = args.model_name
         context_path = args.context_path
         prompt_path = args.prompt_path
-        original_subtitle_path = os.path.splitext(video_path)[0] + "o.srt"
-        translated_subtitle_path = os.path.splitext(video_path)[0] + "t.srt"
+        original_subtitle_path = os.path.splitext(video_path)[0] + ".original.srt"
+        translated_subtitle_path = os.path.splitext(video_path)[0] + ".translated.srt"
 
-        print("Iniciando a criação da legenda.\n")
+        console.print("\n[bold blue]Iniciando a criação da legenda.\n")
 
-        print("Extraindo áudio do vídeo...")
-        extract_audio(video_path, audio_temp_path)
+        console.print("[blue italic]Extraindo áudio do vídeo...")
+        with console.status("[green italic]Processando...", spinner="dots"):
+            extract_audio(video_path, audio_temp_path)
 
-        print("Transcrevendo o áudio e gerando a legenda...")
-        transcribe_audio(audio_temp_path, original_subtitle_path, model_name)
+        console.print("[blue italic]Transcrevendo o áudio e gerando a legenda...")
+        with console.status("[green italic]Processando...", spinner="dots"):
+            transcribe_audio(audio_temp_path, original_subtitle_path, model_name)
 
-        print("Lendo os arquivos do prompt e do contexto...")
-        original_subtitles = read_subtitle_file(original_subtitle_path)
-        prompt = read_text_file(prompt_path)
-        context = read_text_file(context_path)
+        console.print("[blue italic]Lendo os arquivos do prompt e do contexto...")
+        with console.status("[green italic]Processando...", spinner="dots"):
+            prompt = read_text_file(prompt_path)
+            context = read_text_file(context_path)
+            original_subtitles = read_subtitle_file(original_subtitle_path)
 
-        print("Traduzindo a legenda...")
-        messages = generate_messages(original_subtitles, prompt, context)
-        translate_text(messages, text_temp_path)
+        console.print("[blue italic]Traduzindo a legenda...")
+        with console.status("[green italic]Processando...", spinner="dots"):
+            messages = generate_messages(original_subtitles, prompt, context)
+            translate_text(messages, text_temp_path)
 
-        print("Gerando a legenda traduzida...")
-        translated_subtitles = convert_to_subtitle_format(text_temp_path)
-        replace_subtitle_text(original_subtitles, translated_subtitles)
-        save_subtitle(original_subtitles, translated_subtitle_path)
+        console.print("[blue italic]Gerando a legenda traduzida...")
+        with console.status("[green italic]Processando...", spinner="dots"):
+            translated_subtitles = convert_to_subtitle_format(text_temp_path)
+            replace_subtitle_text(original_subtitles, translated_subtitles)
+            save_subtitle(original_subtitles, translated_subtitle_path)
 
-        print("Legenda criada com sucesso.\n")
+        console.print("[bold blue]Legenda criada com sucesso.\n")
     except Exception as e:
-        print(e)
+        console.print(f"[bold red]{e}\n")
     finally:
         remove_file(audio_temp_path)
         remove_file(text_temp_path)
