@@ -131,30 +131,17 @@ def format_timestamp(seconds):
 
 def transcribe_audio(audio_path, subtitle_path, model_name):
     try:
-        # command = [
-        #     'whisper',  audio_path, \
-        #     '--model', model_name, \
-        #     '--task', 'transcribe', \
-        #     '--verbose', 'False', \
-        #     '--word_timestamps', 'True', \
-        #     '--max_line_count', '1', \
-        #     '--max_line_width', '60', \
-        #     '--output_format', 'srt'
-        # ]
-        # subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # Verifique se a GPU está disponível
-
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = whisper.load_model(model_name).to(device)
         result = model.transcribe(audio_path, task="transcribe", word_timestamps=True)
         segments = merge_short_segments(result['segments'])
 
-        with open(subtitle_path, "w", encoding="utf-8") as subtitle_file:
+        with open(subtitle_path, "w", encoding="utf-8") as f:
             for i, segment in enumerate(segments):
                 start = format_timestamp(segment['start'])
                 end = format_timestamp(segment['end'])
                 text = segment['text'].strip()
-                subtitle_file.write(f"{i+1}\n{start} --> {end}\n{text}\n\n")
+                f.write(f"{i+1}\n{start} --> {end}\n{text}\n\n")
 
         console.print(f"[blue]Transcrição e legenda gerada com sucesso.\n")
     except Exception as e:
@@ -171,7 +158,6 @@ def read_subtitle_file(file_path):
             )
             entries = pattern.findall(content)
             subtitles = [{'index': e[0], 'time': e[1], 'text': e[2].strip()} for e in entries]
-        # console.print(f"[blue]Arquivos lidos com sucesso.\n")
         return subtitles
     except Exception as e:
         raise RuntimeError("Erro ao ler os arquivos.") from e
@@ -207,19 +193,7 @@ def generate_system_message(prompt, context):
         raise RuntimeError("Erro ao gerar a mensagem do sistema.") from e
 
 
-# def generate_multiple_user_messages(subtitles):
-#     try:
-#         user_messages = []
-#         for subtitle in subtitles:
-#             content = f"{subtitle['index']}\n{subtitle['time']}\n{subtitle['text']}"
-#             message = {"role": "user", "content": content}
-#             user_messages.append(message)
-#         return user_messages
-#     except Exception as e:
-#         raise RuntimeError("Erro ao gerar as mensagens do usuário.") from e
-
-
-def generate_single_user_message(subtitle):
+def generate_user_message(subtitle):
     try:
         content = f"{subtitle}\n"
         user_message = {"role": "user", "content": content}
@@ -231,8 +205,7 @@ def generate_single_user_message(subtitle):
 def generate_messages(subtitles, prompt, context):
     try:
         system_message = generate_system_message(prompt, context)
-        user_messages = generate_single_user_message(subtitles)
-        # user_messages = generate_multiple_user_messages(subtitles)
+        user_messages = generate_user_message(subtitles)
         messages = system_message + user_messages
         return messages
     except Exception as e:
@@ -255,38 +228,6 @@ def translate_text(messages, output_file_path):
         console.print(f"[blue]Legenda traduzida com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao traduzir a legenda.") from e
-
-
-# def convert_to_subtitle_format(subtitles):
-#     try:
-#         formatted_subtitles = []
-#         for item in subtitles:
-#             index = item['index']
-#             timestamp = item['time']
-#             text = item['text']
-#             formatted_subtitles.append(f"{index}\n{timestamp}\n{text}\n")
-#         return "\n".join(formatted_subtitles)
-#     except Exception as e:
-#         raise RuntimeError("Erro ao converter o texto para o formato de legenda.") from e
-
-# def convert_to_subtitle_format(file_path):
-#     try:
-#         subtitles = []
-#         pattern = re.compile(
-#             r'(\d+)\s*\n(\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3})\s*\n(.*?)(?=\n\n|\Z)', \
-#             re.DOTALL
-#         )
-#         with open(file_path, 'r', encoding='utf-8') as file:
-#             content = file.read()
-#             matches = pattern.findall(content)
-#             for match in matches:
-#                 index = match[0]
-#                 timestamp = match[1]
-#                 text = match[2].replace('\n', ' ')
-#                 subtitles.append({'index': index, 'timestamp': timestamp, 'text': text})
-#         return subtitles
-#     except Exception as e:
-#         raise RuntimeError("Erro ao converter o texto para o formato de legenda.") from e
 
 
 def replace_subtitle_text(original_subtitles_path, translated_subtitles_path):
@@ -358,9 +299,6 @@ def main():
         console.print("[blue italic]Gerando a legenda traduzida...")
         with console.status("[green italic]Processando...", spinner="dots"):
             translated_subtitles = read_subtitle_file(subtitle_temp_path)
-            # translated_subtitles = convert_to_subtitle_format(subtitle_temp_path)
-            # replace_subtitle = replace_subtitle_text(original_subtitle_path, translated_subtitle_path)
-            # long_subtitle = convert_to_subtitle_format(replace_subtitle)
             subtitles = split_long_segments(translated_subtitles, max_words_per_line=12)
             save_subtitle(subtitles, translated_subtitle_path)
 
