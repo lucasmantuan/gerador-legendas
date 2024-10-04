@@ -71,53 +71,57 @@ def extract_audio(video_path, audio_path):
 
 
 def merge_short_segments(segments, min_words=2):
-    merged_segments = []
-    i = 0
-    while i < len(segments):
-        segment = segments[i]
-        words = segment['text'].strip().split()
-
-        if len(words) < min_words:
-            if i + 1 < len(segments):
-                next_segment = segments[i + 1]
-                combined_text = segment['text'].strip() + ' ' + next_segment['text'].strip()
-                combined_segment = {
-                    'start': segment['start'],
-                    'end': next_segment['end'],
-                    'text': combined_text
-                }
-                merged_segments.append(combined_segment)
-                i += 2
+    try:
+        merged_segments = []
+        i = 0
+        while i < len(segments):
+            segment = segments[i]
+            words = segment['text'].strip().split()
+            if len(words) < min_words:
+                if i + 1 < len(segments):
+                    next_segment = segments[i + 1]
+                    combined_text = segment['text'].strip() + ' ' + next_segment['text'].strip()
+                    combined_segment = {
+                        'start': segment['start'],
+                        'end': next_segment['end'],
+                        'text': combined_text
+                    }
+                    merged_segments.append(combined_segment)
+                    i += 2
+                else:
+                    merged_segments.append(segment)
+                    i += 1
             else:
                 merged_segments.append(segment)
                 i += 1
-        else:
-            merged_segments.append(segment)
-            i += 1
-
-    return merged_segments
+        return merged_segments
+    except Exception as e:
+        raise RuntimeError("Erro ao mesclar as legendas curtas.") from e
 
 
 def split_long_segments(subtitles, max_words_per_line=12):
-    for subtitle in subtitles:
-        words = subtitle['text'].split()
-        if len(words) > max_words_per_line:
-            num_lines = (len(words) + max_words_per_line - 1) // max_words_per_line
-            words_per_line = len(words) // num_lines
-            if len(words) % num_lines != 0:
-                words_per_line += 1
-            lines = []
-            index = 0
-            for i in range(num_lines):
-                if i == num_lines - 1:
-                    line_words = words[index:]
-                else:
-                    line_words = words[index:index + words_per_line]
-                line = ' '.join(line_words)
-                lines.append(line)
-                index += words_per_line
-            subtitle['text'] = '\n'.join(lines)
-    return subtitles
+    try:
+        for subtitle in subtitles:
+            words = subtitle['text'].split()
+            if len(words) > max_words_per_line:
+                num_lines = (len(words) + max_words_per_line - 1) // max_words_per_line
+                words_per_line = len(words) // num_lines
+                if len(words) % num_lines != 0:
+                    words_per_line += 1
+                lines = []
+                index = 0
+                for i in range(num_lines):
+                    if i == num_lines - 1:
+                        line_words = words[index:]
+                    else:
+                        line_words = words[index:index + words_per_line]
+                    line = ' '.join(line_words)
+                    lines.append(line)
+                    index += words_per_line
+                subtitle['text'] = '\n'.join(lines)
+        return subtitles
+    except Exception as e:
+        raise RuntimeError("Erro ao dividir as legendas longas.") from e
 
 
 def format_timestamp(seconds):
@@ -135,14 +139,12 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
         model = whisper.load_model(model_name).to(device)
         result = model.transcribe(audio_path, task="transcribe", word_timestamps=True)
         segments = merge_short_segments(result['segments'])
-
         with open(subtitle_path, "w", encoding="utf-8") as f:
             for i, segment in enumerate(segments):
                 start = format_timestamp(segment['start'])
                 end = format_timestamp(segment['end'])
                 text = segment['text'].strip()
                 f.write(f"{i+1}\n{start} --> {end}\n{text}\n\n")
-
         console.print(f"[blue]Transcrição e legenda gerada com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao transcrever o áudio e gerar a legenda.") from e
@@ -177,7 +179,7 @@ def read_interpolated_text_file(file_path):
         blocks = len(read_subtitle_file(file_path))
         with open(file_path, 'r', encoding='utf-8') as f:
             text = f.read()
-            interpolated_text = text.format(num_blocos=blocks)
+            interpolated_text = text.format(blocks=blocks)
             console.print("[blue]Arquivo lido com sucesso.\n")
             return interpolated_text
     except Exception as e:

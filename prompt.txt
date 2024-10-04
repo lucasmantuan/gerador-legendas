@@ -4,7 +4,7 @@ As legendas abaixo possuem um padrão de formatação específico, com um númer
 
 Em hipótese alguma, altere o número de referência e o timestamp da legendas. Mantenha sempre o conteudo da legenda junto com o timestamp original, para garantir que a sincronização com o áudio original seja mantida.
 
-A legenda abaixo possui {num_blocos} blocos de contendo o numero de referencia, o timestamp e o conteudo da legenda. Garanta que a tradução mantenha também {num_blocos} blocos, com o mesmo conteúdo e timestamp.
+A legenda abaixo possui {blocks} blocos de contendo o numero de referencia, o timestamp e o conteudo da legenda. Garanta que a tradução mantenha também {blocks} blocos, com o mesmo conteúdo e timestamp.
 
 Traduza o conteudo das legendas para o português brasileiro, mantendo a clareza do contexto, a concordância gramatical e a naturalidade da linguagem presentes no texto de referência fornecido.
 
