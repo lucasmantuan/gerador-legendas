@@ -20,16 +20,24 @@ def config_client(api_key):
         client = openai.OpenAI(api_key=api_key)
         return client
     except Exception as e:
-        raise RuntimeError("Erro ao configurar o client da Openai.") from e
+        raise RuntimeError("Erro ao configurar o cliente da Openai.") from e
 
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=UserWarning)
 sys.excepthook = except_hook
 console = rich.get_console()
 config = configparser.ConfigParser()
 config.read('config.ini')
 api_key = config['DEFAULT']['OPENAI_API_KEY']
 client = config_client(api_key)
+
+params = {
+    "model": "gpt-4o", \
+    "temperature": 0.4, \
+    "max_words": 10, \
+    "min_words": 3, \
+    "encoding": "utf-8"
+}
 
 
 def parse_args():
@@ -70,7 +78,7 @@ def extract_audio(video_path, audio_path):
         raise RuntimeError("Erro ao extrair o áudio.") from e
 
 
-def merge_short_segments(segments, min_words=2):
+def merge_short_segments(segments, min_words=params['min_words']):
     try:
         merged_segments = []
         i = 0
@@ -99,12 +107,12 @@ def merge_short_segments(segments, min_words=2):
         raise RuntimeError("Erro ao mesclar as legendas curtas.") from e
 
 
-def split_long_segments(subtitles, max_words_per_line=12):
+def split_long_segments(subtitles, max_words=params['max_words']):
     try:
         for subtitle in subtitles:
             words = subtitle['text'].split()
-            if len(words) > max_words_per_line:
-                num_lines = (len(words) + max_words_per_line - 1) // max_words_per_line
+            if len(words) > max_words:
+                num_lines = (len(words) + max_words - 1) // max_words
                 words_per_line = len(words) // num_lines
                 if len(words) % num_lines != 0:
                     words_per_line += 1
@@ -139,7 +147,7 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
         model = whisper.load_model(model_name).to(device)
         result = model.transcribe(audio_path, task="transcribe", word_timestamps=True)
         segments = merge_short_segments(result['segments'])
-        with open(subtitle_path, "w", encoding="utf-8") as f:
+        with open(subtitle_path, "w", encoding=params["encoding"]) as f:
             for i, segment in enumerate(segments):
                 start = format_timestamp(segment['start'])
                 end = format_timestamp(segment['end'])
@@ -152,10 +160,12 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
 
 def read_subtitle_file(file_path):
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding=params["encoding"]) as f:
             content = f.read()
             pattern = re.compile(
-                r'(\d+)\s*\n(\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3})\s*\n(.*?)(?=\n\n|\Z)', \
+                r'(\d+)\s*\n'
+                r'(\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3})\s*\n'
+                r'(.*?)(?=\n\n|\Z)', \
                 re.DOTALL
             )
             entries = pattern.findall(content)
@@ -167,7 +177,7 @@ def read_subtitle_file(file_path):
 
 def read_text_file(file_path):
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding=params["encoding"]) as f:
             console.print("[blue]Arquivo lido com sucesso.")
             return f.read()
     except Exception as e:
@@ -177,7 +187,7 @@ def read_text_file(file_path):
 def read_interpolated_text_file(file_path):
     try:
         blocks = len(read_subtitle_file(file_path))
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding=params["encoding"]) as f:
             text = f.read()
             interpolated_text = text.format(blocks=blocks)
             console.print("[blue]Arquivo lido com sucesso.\n")
@@ -218,14 +228,14 @@ def translate_text(messages, output_file_path):
     try:
         messages = messages
         response = client.chat.completions.create(
-            model="gpt-4o", \
+            model=params["model"], \
             messages=messages, \
-            temperature=0.5, \
+            temperature=params["temperature"], \
             n=1, \
             stop=None
         )
         translated_text = response.choices[0].message.content.strip()
-        with open(output_file_path, 'w', encoding='utf-8') as f:
+        with open(output_file_path, 'w', encoding=params["encoding"]) as f:
             f.write(translated_text)
         console.print(f"[blue]Legenda traduzida com sucesso.\n")
     except Exception as e:
@@ -248,7 +258,7 @@ def replace_subtitle_text(original_subtitles_path, translated_subtitles_path):
 
 def save_subtitle(subtitles, file_path):
     try:
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, 'w', encoding=params["encoding"]) as f:
             for subtitle in subtitles:
                 f.write(f"{subtitle['index']}\n{subtitle['time']}\n{subtitle['text']}\n\n")
             console.print(f"[blue]Legenda traduzida salva com sucesso.\n")
@@ -301,7 +311,7 @@ def main():
         console.print("[blue italic]Gerando a legenda traduzida...")
         with console.status("[green italic]Processando...", spinner="dots"):
             translated_subtitles = read_subtitle_file(subtitle_temp_path)
-            subtitles = split_long_segments(translated_subtitles, max_words_per_line=12)
+            subtitles = split_long_segments(translated_subtitles, max_words=12)
             save_subtitle(subtitles, translated_subtitle_path)
 
         console.print("[bold blue]Legenda criada com sucesso.\n")
