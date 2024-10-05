@@ -1,5 +1,5 @@
 # Gerador e Tradutor de Legendas
 
 ## Fazer
-- Retirar o timestamp da legenda para tradução
-- Adicionar tratamento de erro nas novas funções
+- Dividir a tradução da legenda em blocos e unificar no final
+- Testar a tradução da legenda sem timestamp
