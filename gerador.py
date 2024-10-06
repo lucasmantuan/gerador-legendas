@@ -32,11 +32,12 @@ api_key = config['DEFAULT']['OPENAI_API_KEY']
 client = config_client(api_key)
 
 params = {
-    "model": "gpt-4o", \
-    "temperature": 0.5, \
+    "size": 40, \
+    "encoding": "utf-8", \
     "max_words": 12, \
     "min_words": 2, \
-    "encoding": "utf-8"
+    "model": "gpt-4o", \
+    "temperature": 0.5,
 }
 
 
@@ -45,20 +46,20 @@ def parse_args():
     parser.add_argument("-i", \
         dest="video_path", \
         required=True, \
-        help="caminho para o arquivo de vídeo")
+        help="Caminho para o arquivo de vídeo.")
     parser.add_argument("-m", \
         dest="model_name", \
         required=False, \
         default="base", \
-        help="modelo a ser utilizado")
+        help="Modelo a ser utilizado para transcrição.")
     parser.add_argument("-p", \
         dest="prompt_path", \
         required=True, \
-        help="caminho para o arquivo do prompt")
+        help="Caminho para o arquivo do prompt.")
     parser.add_argument("-c", \
         dest="context_path", \
         required=True, \
-        help="caminho para o arquivo do contexto")
+        help="Caminho para o arquivo do contexto.")
     return parser.parse_args()
 
 
@@ -153,9 +154,9 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
                 end = format_timestamp(segment['end'])
                 text = segment['text'].strip()
                 f.write(f"{i+1}\n{start} --> {end}\n{text}\n\n")
-        console.print(f"[blue]Transcrição e legenda gerada com sucesso.\n")
+        console.print(f"[blue]Transcrição do áudio gerada com sucesso.\n")
     except Exception as e:
-        raise RuntimeError("Erro ao transcrever o áudio e gerar a legenda.") from e
+        raise RuntimeError("Erro ao transcrever o áudio.") from e
 
 
 def read_subtitle_file(single_subtitle):
@@ -163,47 +164,23 @@ def read_subtitle_file(single_subtitle):
         pattern = re.compile(
             r'(\d+)\s*\n'
             r'(\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3})\s*\n'
-            r'(.*?)(?=\n\n|\Z)', re.DOTALL
+            r'(.*?)(?=\n\n|\Z)', \
+            re.DOTALL
         )
         entries = pattern.findall(single_subtitle)
         subtitles = [{'index': e[0], 'time': e[1], 'text': e[2].strip()} for e in entries]
         return subtitles
     except Exception as e:
-        raise RuntimeError("Erro ao processar o conteúdo das legendas.") from e
+        raise RuntimeError("Erro ao ler o conteúdo das legendas.") from e
 
 
 def read_text_file(file_path):
     try:
         with open(file_path, 'r', encoding=params["encoding"]) as f:
-            console.print("[blue]Arquivo lido com sucesso.")
+            console.print(f"[blue]Arquivo {file_path} lido com sucesso.")
             return f.read()
     except Exception as e:
-        raise RuntimeError("Erro ao ler o arquivo de texto.") from e
-
-
-def read_interpolated_text_file(subtitle_file, prompt_file_path):
-    try:
-        blocks = len(read_subtitle_file(subtitle_file))
-        with open(prompt_file_path, 'r', encoding=params["encoding"]) as f:
-            text = f.read()
-            interpolated_text = text.format(blocks=blocks)
-            console.print("[blue]Arquivo lido com sucesso.\n")
-            return interpolated_text
-    except Exception as e:
-        raise RuntimeError("Erro ao ler o arquivo de texto.") from e
-
-
-def generate_multiple_user_message(single_subtitle):
-    try:
-        subtitles = read_subtitle_file(single_subtitle)
-        user_messages = []
-        for subtitle in subtitles:
-            content = f"{subtitle['index']}\n{subtitle['time']}\n{subtitle['text']}"
-            message = {"role": "user", "content": content}
-            user_messages.append(message)
-        return user_messages
-    except Exception as e:
-        raise RuntimeError("Erro ao gerar as mensagens do usuário.") from e
+        raise RuntimeError("Erro ao ler os arquivos.") from e
 
 
 def generate_user_message(subtitle):
@@ -212,7 +189,7 @@ def generate_user_message(subtitle):
         user_message = {"role": "user", "content": content}
         return [user_message]
     except Exception as e:
-        raise RuntimeError("Erro ao gerar a mensagem do sistema.") from e
+        raise RuntimeError("Erro ao gerar a mensagem do usuário.") from e
 
 
 def generate_system_message(prompt, context):
@@ -227,7 +204,6 @@ def generate_system_message(prompt, context):
 def generate_messages(subtitles, prompt, context):
     try:
         user_messages = generate_user_message(subtitles)
-        # user_messages = generate_multiple_user_message(subtitles)
         system_message = generate_system_message(prompt, context)
         messages = system_message + user_messages
         return messages
@@ -235,10 +211,9 @@ def generate_messages(subtitles, prompt, context):
         raise RuntimeError("Erro ao gerar as mensagens.") from e
 
 
-def translate_text(messages, output_file_path):
+def translate_text(messages):
     try:
-        messages = messages
-        response = client.chat.completions.create(
+        response = client .chat.completions.create(
             model=params["model"], \
             messages=messages, \
             temperature=params["temperature"], \
@@ -246,25 +221,12 @@ def translate_text(messages, output_file_path):
             stop=None
         )
         translated_text = response.choices[0].message.content.strip()
-        with open(output_file_path, 'w', encoding=params["encoding"]) as f:
-            f.write(translated_text)
-        console.print(f"[blue]Legenda traduzida com sucesso.\n")
+        if translated_text.startswith('```plaintext') and translated_text.endswith('```'):
+            translated_text = translated_text.replace('```plaintext', '', 1)
+            translated_text = translated_text[:-3]
+        return translated_text
     except Exception as e:
-        raise RuntimeError("Erro ao traduzir a legenda.") from e
-
-
-def replace_subtitle_text(original_subtitles_path, translated_subtitles_path):
-    try:
-        original_subtitles = read_subtitle_file(original_subtitles_path)
-        translated_subtitles = read_subtitle_file(translated_subtitles_path)
-        translated_dict = {item['index']: item['text'] for item in translated_subtitles}
-        for item in original_subtitles:
-            index = item['index']
-            if index in translated_dict:
-                item['text'] = translated_dict[index]
-        return original_subtitles
-    except Exception as e:
-        raise RuntimeError("Erro ao substituir o texto da legenda.") from e
+        raise RuntimeError("Erro ao traduzir o bloco da legenda.") from e
 
 
 def save_subtitle(subtitles, file_path):
@@ -272,26 +234,68 @@ def save_subtitle(subtitles, file_path):
         with open(file_path, 'w', encoding=params["encoding"]) as f:
             for subtitle in subtitles:
                 f.write(f"{subtitle['index']}\n{subtitle['time']}\n{subtitle['text']}\n\n")
-            console.print(f"[blue]Legenda traduzida salva com sucesso.\n")
+            console.print(f"[blue]Legenda salva com sucesso.\n")
     except Exception as e:
-        raise RuntimeError("Erro ao salvar a legenda traduzida.") from e
+        raise RuntimeError("Erro ao salvar a legenda.") from e
 
 
 def remove_file(file_path):
     try:
         os.remove(file_path)
-    except FileNotFoundError:
-        pass
     except Exception as e:
         raise RuntimeError("Erro ao remover os arquivos temporários.") from e
 
 
+def split_subtitles(subtitles, size):
+    try:
+        chunks = []
+        current_chunk = []
+        current_size = 0
+        end_punctuation = {'.', '!', '?'}
+        for subtitle in subtitles:
+            current_chunk.append(subtitle)
+            current_size += 1
+            if current_size >= size:
+                last_subtitle_text = subtitle['text'].strip()
+                if last_subtitle_text and last_subtitle_text[-1] in end_punctuation:
+                    chunks.append(current_chunk)
+                    current_chunk = []
+                    current_size = 0
+                else:
+                    continue
+        if current_chunk:
+            chunks.append(current_chunk)
+        console.print(f"[blue]Legendas divididas com sucesso.\n")
+        return chunks
+    except Exception as e:
+        raise RuntimeError("Erro ao dividir as legendas.") from e
+
+
+def translate_chunk_text(subtitle_chunks, prompt, context):
+    try:
+        translated_subtitles = []
+        for i, chunk in enumerate(subtitle_chunks):
+            console.print(f"[blue italic]Traduzindo o bloco {i + 1}/{len(subtitle_chunks)} da legenda...")
+            chunk_text = ''
+            for item in chunk:
+                chunk_text += f"{item['index']}\n{item['time']}\n{item['text']}\n\n"
+            blocks = len(chunk)
+            chunk_prompt = prompt.format(blocks=blocks)
+            messages = generate_messages(chunk_text, chunk_prompt, context)
+            translated_chunk_text = translate_text(messages)
+            translated_chunk = read_subtitle_file(translated_chunk_text)
+            translated_subtitles.extend(translated_chunk)
+        console.print(f"[blue]Blocos traduzidos com sucesso.\n")
+        return translated_subtitles
+    except Exception as e:
+        raise RuntimeError("Erro ao traduzir os blocos.") from e
+
+
 def main():
-    audio_temp_path = "temp_audio.wav"
-    subtitle_temp_path = "temp_subtitle.srt"
     try:
         args = parse_args()
         video_path = args.video_path
+        audio_temp_path = "temp_audio.wav"
         model_name = args.model_name
         context_path = args.context_path
         prompt_path = args.prompt_path
@@ -304,26 +308,29 @@ def main():
         with console.status("[green italic]Processando...", spinner="dots"):
             extract_audio(video_path, audio_temp_path)
 
-        console.print("[blue italic]Transcrevendo o áudio e gerando a legenda...")
+        console.print("[blue italic]Transcrevendo o áudio...")
         with console.status("[green italic]Processando...", spinner="dots"):
             transcribe_audio(audio_temp_path, original_subtitle_path, model_name)
 
-        console.print("[blue italic]Lendo os arquivos do prompt e do contexto...")
+        console.print("[blue italic]Lendo os arquivos para tradução...")
         with console.status("[green italic]Processando...", spinner="dots"):
-            original_subtitles = read_text_file(original_subtitle_path)
+            original_subtitles_text = read_text_file(original_subtitle_path)
+            prompt = read_text_file(prompt_path)
             context = read_text_file(context_path)
-            prompt = read_interpolated_text_file(original_subtitles, prompt_path)
+            console.print()
 
-        console.print("[blue italic]Traduzindo a legenda...")
+        console.print("[blue italic]Dividindo a legenda em blocos...")
         with console.status("[green italic]Processando...", spinner="dots"):
-            messages = generate_messages(original_subtitles, prompt, context)
-            translate_text(messages, subtitle_temp_path)
+            original_subtitles = read_subtitle_file(original_subtitles_text)
+            original_subtitle_chunks = split_subtitles(original_subtitles, size=params['size'])
 
-        console.print("[blue italic]Gerando a legenda traduzida...")
+        console.print("[blue italic]Traduzindo os blocos da legenda...")
         with console.status("[green italic]Processando...", spinner="dots"):
-            temp_subtitles = read_text_file(subtitle_temp_path)
-            translated_subtitle = read_subtitle_file(temp_subtitles)
-            subtitles = split_long_segments(translated_subtitle, max_words=params['max_words'])
+            translated_subtitles = translate_chunk_text(original_subtitle_chunks, prompt, context)
+
+        console.print("[blue italic]Salvando a legenda...")
+        with console.status("[green italic]Processando...", spinner="dots"):
+            subtitles = split_long_segments(translated_subtitles, max_words=params['max_words'])
             save_subtitle(subtitles, translated_subtitle_path)
 
         console.print("[bold blue]Legenda criada com sucesso.\n")
@@ -331,7 +338,6 @@ def main():
         console.print(f"[red]{e}\n")
     finally:
         remove_file(audio_temp_path)
-        remove_file(subtitle_temp_path)
 
 
 if __name__ == "__main__":
