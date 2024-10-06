@@ -36,7 +36,7 @@ params = {
     "encoding": "utf-8", \
     "max_words": 12, \
     "min_words": 2, \
-    "model": "gpt-4o", \
+    "model": "gpt-4o-mini", \
     "temperature": 0.5,
 }
 
