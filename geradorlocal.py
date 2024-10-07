@@ -15,7 +15,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 model = model.to(device)
 
-text = "You know, in the old days, they had like,"
+text = "So before we go into this fascinating Darwinian evolution of cryptocurrencies, let me ask"
 
 tokenizer.src_lang = "en"
 

@@ -86,16 +86,21 @@ def merge_short_segments(segments, min_words):
         while i < len(segments):
             segment = segments[i]
             words = segment['text'].strip().split()
+            # Verifica se o numero de palavras é menor que o minimo especificado
             if len(words) < min_words:
+                # Verifica se há um próximo segmento disponível para mesclar
                 if i + 1 < len(segments):
                     next_segment = segments[i + 1]
+                    # Combina o texto do segmento atual com o próximo segmento
                     combined_text = segment['text'].strip() + ' ' + next_segment['text'].strip()
+                    # Cria um novo segmento com o tempo inicial do atual e o tempo final do próximo
                     combined_segment = {
                         'start': segment['start'],
                         'end': next_segment['end'],
                         'text': combined_text
                     }
                     merged_segments.append(combined_segment)
+                    # Pula para o segmento após o próximo segmento, pois os anteriores foram mesclados
                     i += 2
                 else:
                     merged_segments.append(segment)
@@ -112,21 +117,27 @@ def split_long_segments(subtitles, max_words):
     try:
         for subtitle in subtitles:
             words = subtitle['text'].split()
+            # Verifica se o número de palavras é maior que o máximo especificado
             if len(words) > max_words:
+                # Calcula o número de linhas necessárias para dividir o texto
                 num_lines = (len(words) + max_words - 1) // max_words
                 words_per_line = len(words) // num_lines
                 if len(words) % num_lines != 0:
                     words_per_line += 1
                 lines = []
                 index = 0
+                # Divide o texto em linhas com o número de palavras especificado
                 for i in range(num_lines):
                     if i == num_lines - 1:
+                        # Adiciona as palavras restantes na última linha
                         line_words = words[index:]
                     else:
+                        # Adiciona o número de palavras especificado em cada linha
                         line_words = words[index:index + words_per_line]
                     line = ' '.join(line_words)
                     lines.append(line)
                     index += words_per_line
+                # Atualiza o texto da legenda com as novas linhas divididas
                 subtitle['text'] = '\n'.join(lines)
         return subtitles
     except Exception as e:
@@ -221,9 +232,10 @@ def translate_text(messages):
             stop=None
         )
         translated_text = response.choices[0].message.content.strip()
-        if translated_text.startswith('```plaintext') and translated_text.endswith('```'):
-            translated_text = translated_text.replace('```plaintext', '', 1)
-            translated_text = translated_text[:-3]
+        # Remove o bloco de código da primeira e última linha
+        if translated_text.startswith('```') and translated_text.endswith('```'):
+            translated_text = translated_text.split('\n', 1)[-1]
+            translated_text = translated_text.rsplit('```', 1)[0]
         return translated_text
     except Exception as e:
         raise RuntimeError("Erro ao traduzir o bloco da legenda.") from e
@@ -251,17 +263,21 @@ def split_subtitles(subtitles, size):
         chunks = []
         current_chunk = []
         current_size = 0
+        # Conjunto de pontuações que indicam o final de uma frase
         end_punctuation = {'.', '!', '?'}
         for subtitle in subtitles:
             current_chunk.append(subtitle)
             current_size += 1
+            # Verifica se o tamanho do bloco atual é maior ou igual ao tamanho especificado
             if current_size >= size:
                 last_subtitle_text = subtitle['text'].strip()
+                # Verifica se o último caractere do último subtítulo é uma pontuação final
                 if last_subtitle_text and last_subtitle_text[-1] in end_punctuation:
                     chunks.append(current_chunk)
                     current_chunk = []
                     current_size = 0
                 else:
+                    # Continua adicionando legendas ao bloco atual
                     continue
         if current_chunk:
             chunks.append(current_chunk)
