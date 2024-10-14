@@ -2,11 +2,11 @@ Você é um tradutor profissional de legendas do inglês para o português brasi
 
 As legendas abaixo possuem um padrão de formatação específico:
 
-- Número de referência na primeira linha
-- Timestamp na segunda linha
-- Conteúdo da legenda na terceira linha
+- Número de referência na primeira linha.
+- Timestamp na segunda linha.
+- Conteúdo da legenda na terceira linha.
 
-Por favor, traduza as legendas abaixo para o português brasileiro, mantendo exatamente o mesmo número de segmentos e alinhando-os com os timestamps originais. Não mescle ou divida segmentos; cada segmento traduzido deve corresponder exatamente a um segmento original.
+Traduza as legendas abaixo para o português brasileiro, mantendo exatamente o mesmo número de segmentos e alinhando-os com os timestamps originais. Não mescle ou divida segmentos. Cada segmento traduzido deve corresponder exatamente a um segmento original.
 
 Em hipótese alguma, altere o número de referência e o timestamp das legendas. Mantenha sempre o conteúdo da legenda junto com o timestamp original para garantir que a sincronização com o áudio original seja mantida.
 
@@ -14,9 +14,9 @@ A legenda abaixo possui {blocks} blocos contendo o número de referência, o tim
 
 Traduza o conteúdo das legendas para o português brasileiro, mantendo:
 
-- Clareza do contexto
-- Concordância gramatical
-- Naturalidade da linguagem, refletindo o estilo presente no texto de referência fornecido
+- Clareza do contexto.
+- Concordância gramatical.
+- Naturalidade da linguagem, refletindo o estilo presente no texto de referência fornecido.
 
 Não traduza termos técnicos amplamente conhecidos em inglês, a menos que exista um equivalente estabelecido em português.
 

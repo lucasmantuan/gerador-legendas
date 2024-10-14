@@ -1,3 +1,5 @@
+#!/usr/bin/env .venv/bin/python
+
 import argparse
 import configparser
 import openai
@@ -36,8 +38,9 @@ params = {
     "encoding": "utf-8", \
     "max_words": 12, \
     "min_words": 2, \
-    "model": "gpt-4o-mini", \
-    "temperature": 0.5,
+    "temperature": 0.5, \
+    "gpt-model": "gpt-4o-mini", \
+    "whisper-model": "medium"
 }
 
 
@@ -47,11 +50,6 @@ def parse_args():
         dest="video_path", \
         required=True, \
         help="Caminho para o arquivo de vídeo.")
-    parser.add_argument("-m", \
-        dest="model_name", \
-        required=False, \
-        default="base", \
-        help="Modelo a ser utilizado para transcrição.")
     parser.add_argument("-p", \
         dest="prompt_path", \
         required=True, \
@@ -225,7 +223,7 @@ def generate_messages(subtitles, prompt, context):
 def translate_text(messages):
     try:
         response = client .chat.completions.create(
-            model=params["model"], \
+            model=params["gpt-model"], \
             messages=messages, \
             temperature=params["temperature"], \
             n=1, \
@@ -312,7 +310,6 @@ def main():
         args = parse_args()
         video_path = args.video_path
         audio_temp_path = "temp_audio.wav"
-        model_name = args.model_name
         context_path = args.context_path
         prompt_path = args.prompt_path
         original_subtitle_path = os.path.splitext(video_path)[0] + ".original.srt"
@@ -326,7 +323,7 @@ def main():
 
         console.print("[blue italic]Transcrevendo o áudio...")
         with console.status("[green italic]Processando...", spinner="dots"):
-            transcribe_audio(audio_temp_path, original_subtitle_path, model_name)
+            transcribe_audio(audio_temp_path, original_subtitle_path, params['whisper-model'])
 
         console.print("[blue italic]Lendo os arquivos para tradução...")
         with console.status("[green italic]Processando...", spinner="dots"):
