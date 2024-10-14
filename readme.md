@@ -4,12 +4,10 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
 
 ## Funcionalidades
 
-- Extrai áudio de vídeos em diversos formatos.
 - Transcreve o áudio para criar legendas no formato `.srt` usando o Whisper.
 - Mescla segmentos curtos de legenda para melhorar a legibilidade.
 - Divide segmentos longos de legenda em múltiplas linhas.
 - Traduz as legendas com base em um prompt e contexto fornecidos.
-- Salva as legendas em formato `.srt`.
 
 ## Requisitos
 
@@ -18,25 +16,32 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
 
 ### Principais Bibliotecas Usadas
 
-- `openai`: para tradução automática via API da OpenAI.
-- `whisper`: para transcrição de áudio.
-- `torch`: para uso de aceleradores de GPU com o modelo Whisper.
-- `argparse`: para gerenciar argumentos de linha de comando.
-- `subprocess`: para execução de comandos externos (ex. ffmpeg).
-- `rich`: para exibição de mensagens coloridas no terminal.
-- `ffmpeg`: para extração de áudio de arquivos de vídeo.
+- `openai`: Para tradução automática via API da OpenAI.
+- `whisper`: Para transcrição de áudio.
+- `torch`: Para uso de aceleradores de GPU com o modelo Whisper.
+- `rich`: Para exibição de mensagens coloridas no terminal.
+- `ffmpeg`: Para extração de áudio de arquivos de vídeo.
 
 ## Instalação
 
-- Configure o ambiente de desenvolvimento Linux ou WSL:
+- Configure o ambiente de desenvolvimento no Linux ou no WSL:
    ```bash
    sudo apt update
    sudo apt install python3 python3-venv
    ```
+
+- Certifique-se de ter o ffmpeg instalado:
+   ```bash
+   sudo apt install ffmpeg
+   ```
+
+- Instale o CUDA Toolkit para acelerar o modelo Whisper com a GPU.
+   ```bash
+   ```
 - Clone o repositório:
    ```bash
-   git clone https://github.com/lucasmantuan/tradutor-legendas.git
-   cd tradutor-legendas
+   git clone https://github.com/lucasmantuan/gerador-legendas.git
+   cd gerador-legendas
    ```
 - Crie um ambiente virtual:
    ```bash
@@ -47,24 +52,23 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
    ```bash
    pip install -r requirements.txt
    ```
-- Certifique-se de ter o ffmpeg instalado:
+
+- Baixe o modelo Whisper que será usado para transcrição:
    ```bash
-   sudo apt install ffmpeg
-   ```
-- Instale o CUDA Toolkit para acelerar o modelo Whisper com a GPU.
-   ```bash
+   whisper large-v3-turbo
    ```
 
 - Crie um arquivo de configuração `config.ini` no diretório raiz com a sua chave de API da OpenAI:
    ```bash
    [DEFAULT]
-   OPENAI_API_KEY=sua-chave-api
+   api_key=sua-chave-api
    ```
+
 ## Uso
 - Execute o programa com o seguinte comando:
     ```bash
     chmod +x main.py
-    ./main.py -i <caminho_para_video> -p <caminho_prompt> -c <caminho_contexto>
+    ./main.py -i <video> -p <prompt> -c <contexto>
     ```
 ### Argumentos
 - `-i`: Caminho para o arquivo de vídeo.
@@ -73,7 +77,7 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
 
 ### Exemplo de uso
 ```bash
-main.py -i meu_video.mp4 -p prompt.txt -c contexto.txt
+./main.py -i video.mp4 -p prompt.txt -c contexto.txt
 ```
 
 ## Estrutura do Projeto
