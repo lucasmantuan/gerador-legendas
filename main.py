@@ -328,9 +328,9 @@ def main():
         with console.status("[green italic]Processando...", spinner="dots"):
             extract_audio(video_path, audio_temp_path)
 
-        # console.print("[white italic]Transcrevendo o áudio...")
-        # with console.status("[green italic]Processando...", spinner="dots"):
-        #     transcribe_audio(audio_temp_path, original_subtitle_path, params['whisper_model'])
+        console.print("[white italic]Transcrevendo o áudio...")
+        with console.status("[green italic]Processando...", spinner="dots"):
+            transcribe_audio(audio_temp_path, original_subtitle_path, params['whisper_model'])
 
         console.print("[white italic]Lendo os arquivos para tradução...")
         with console.status("[green italic]Processando...", spinner="dots"):
