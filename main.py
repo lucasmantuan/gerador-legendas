@@ -13,8 +13,15 @@ import warnings
 import whisper
 
 
+console = rich.get_console()
+warnings.filterwarnings("ignore", category=UserWarning)
+
+
 def except_hook(type, value, traceback):
-    console.print(f"\n[red italic]Ocorreu um erro do tipo {type.__name__}.")
+    console.print(f"\n[red italic]Ocorreu um erro do tipo {type.__name__}")
+
+
+sys.excepthook = except_hook
 
 
 def config_client(api_key):
@@ -25,22 +32,21 @@ def config_client(api_key):
         raise RuntimeError("Erro ao configurar o cliente da Openai.") from e
 
 
-warnings.filterwarnings("ignore", category=UserWarning)
-sys.excepthook = except_hook
-console = rich.get_console()
-config = configparser.ConfigParser()
-config.read('config.ini')
-api_key = config['DEFAULT']['OPENAI_API_KEY']
+api_config = configparser.ConfigParser()
+api_config.read('api.ini')
+api_key = api_config['DEFAULT']['api_key']
 client = config_client(api_key)
 
+params_config = configparser.ConfigParser()
+params_config.read('params.ini')
 params = {
-    "size": 40, \
-    "encoding": "utf-8", \
-    "max_words": 12, \
-    "min_words": 2, \
-    "temperature": 0.5, \
-    "gpt-model": "gpt-4o-mini", \
-    "whisper-model": "large-v3-turbo" # medium
+    "size": params_config.getint('DEFAULT', 'size'),
+    "encoding": params_config['DEFAULT']['encoding'],
+    "max_words": params_config.getint('DEFAULT', 'max_words'),
+    "min_words": params_config.getint('DEFAULT', 'min_words'),
+    "temperature": params_config.getfloat('DEFAULT', 'temperature'),
+    "gpt_model": params_config['DEFAULT']['gpt_model'],
+    "whisper_model": params_config['DEFAULT']['whisper_model']
 }
 
 
@@ -223,7 +229,7 @@ def generate_messages(subtitles, prompt, context):
 def translate_text(messages):
     try:
         response = client .chat.completions.create(
-            model=params["gpt-model"], \
+            model=params["gpt_model"], \
             messages=messages, \
             temperature=params["temperature"], \
             n=1, \
@@ -236,6 +242,7 @@ def translate_text(messages):
             translated_text = translated_text.rsplit('```', 1)[0]
         return translated_text
     except Exception as e:
+        print(e)
         raise RuntimeError("Erro ao traduzir o bloco da legenda.") from e
 
 
@@ -323,7 +330,7 @@ def main():
 
         # console.print("[white italic]Transcrevendo o áudio...")
         # with console.status("[green italic]Processando...", spinner="dots"):
-        #     transcribe_audio(audio_temp_path, original_subtitle_path, params['whisper-model'])
+        #     transcribe_audio(audio_temp_path, original_subtitle_path, params['whisper_model'])
 
         console.print("[white italic]Lendo os arquivos para tradução...")
         with console.status("[green italic]Processando...", spinner="dots"):
