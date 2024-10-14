@@ -40,7 +40,7 @@ params = {
     "min_words": 2, \
     "temperature": 0.5, \
     "gpt-model": "gpt-4o-mini", \
-    "whisper-model": "medium"
+    "whisper-model": "large-v3-turbo" # medium
 }
 
 

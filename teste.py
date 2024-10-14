@@ -6,7 +6,6 @@ import re
 
 
 model_name = "facebook/m2m100_1.2B"
-# model_name = "facebook/m2m100_418M"
 tokenizer = transformers.M2M100Tokenizer.from_pretrained(model_name)
 model = transformers.M2M100ForConditionalGeneration.from_pretrained(model_name)
 console = rich.get_console()
