@@ -14,7 +14,7 @@ import whisper
 
 
 def except_hook(type, value, traceback):
-    console.print(f"\n[red]Ocorreu um erro do tipo {type.__name__}.")
+    console.print(f"\n[red italic]Ocorreu um erro do tipo {type.__name__}.")
 
 
 def config_client(api_key):
@@ -72,7 +72,7 @@ def extract_audio(video_path, audio_path):
             audio_path
         ]
         subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        console.print(f"[blue]Áudio extraído com sucesso.\n")
+        console.print(f"[cyan]Áudio extraído com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao extrair o áudio.") from e
 
@@ -163,7 +163,7 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
                 end = format_timestamp(segment['end'])
                 text = segment['text'].strip()
                 f.write(f"{i+1}\n{start} --> {end}\n{text}\n\n")
-        console.print(f"[blue]Transcrição do áudio gerada com sucesso.\n")
+        console.print(f"[cyan]Transcrição do áudio gerada com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao transcrever o áudio.") from e
 
@@ -186,7 +186,7 @@ def read_subtitle_file(single_subtitle):
 def read_text_file(file_path):
     try:
         with open(file_path, 'r', encoding=params["encoding"]) as f:
-            console.print(f"[blue]Arquivo {file_path} lido com sucesso.")
+            console.print(f"[cyan]Arquivo {file_path} lido com sucesso.")
             return f.read()
     except Exception as e:
         raise RuntimeError("Erro ao ler os arquivos.") from e
@@ -244,7 +244,7 @@ def save_subtitle(subtitles, file_path):
         with open(file_path, 'w', encoding=params["encoding"]) as f:
             for subtitle in subtitles:
                 f.write(f"{subtitle['index']}\n{subtitle['time']}\n{subtitle['text']}\n\n")
-            console.print(f"[blue]Legenda salva com sucesso.\n")
+            console.print(f"[cyan]Legenda salva com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao salvar a legenda.") from e
 
@@ -279,7 +279,7 @@ def split_subtitles(subtitles, size):
                     continue
         if current_chunk:
             chunks.append(current_chunk)
-        console.print(f"[blue]Legendas divididas com sucesso.\n")
+        console.print(f"[cyan]Legendas divididas com sucesso.\n")
         return chunks
     except Exception as e:
         raise RuntimeError("Erro ao dividir as legendas.") from e
@@ -289,7 +289,7 @@ def translate_chunk_text(subtitle_chunks, prompt, context):
     try:
         translated_subtitles = []
         for i, chunk in enumerate(subtitle_chunks):
-            console.print(f"[blue italic]Traduzindo o bloco {i + 1}/{len(subtitle_chunks)} da legenda...")
+            console.print(f"[cyan italic]Traduzindo o bloco {i + 1}/{len(subtitle_chunks)} da legenda...")
             chunk_text = ''
             for item in chunk:
                 chunk_text += f"{item['index']}\n{item['time']}\n{item['text']}\n\n"
@@ -299,7 +299,7 @@ def translate_chunk_text(subtitle_chunks, prompt, context):
             translated_chunk_text = translate_text(messages)
             translated_chunk = read_subtitle_file(translated_chunk_text)
             translated_subtitles.extend(translated_chunk)
-        console.print(f"[blue]Blocos traduzidos com sucesso.\n")
+        console.print(f"[cyan]Blocos traduzidos com sucesso.\n")
         return translated_subtitles
     except Exception as e:
         raise RuntimeError("Erro ao traduzir os blocos.") from e
@@ -315,40 +315,40 @@ def main():
         original_subtitle_path = os.path.splitext(video_path)[0] + ".original.srt"
         translated_subtitle_path = os.path.splitext(video_path)[0] + ".translated.srt"
 
-        console.print("\n[bold blue]Iniciando a criação da legenda.\n")
+        console.print("\n[white bold]Iniciando a criação da legenda.\n")
 
-        console.print("[blue italic]Extraindo áudio do vídeo...")
+        console.print("[white italic]Extraindo áudio do vídeo...")
         with console.status("[green italic]Processando...", spinner="dots"):
             extract_audio(video_path, audio_temp_path)
 
-        console.print("[blue italic]Transcrevendo o áudio...")
-        with console.status("[green italic]Processando...", spinner="dots"):
-            transcribe_audio(audio_temp_path, original_subtitle_path, params['whisper-model'])
+        # console.print("[white italic]Transcrevendo o áudio...")
+        # with console.status("[green italic]Processando...", spinner="dots"):
+        #     transcribe_audio(audio_temp_path, original_subtitle_path, params['whisper-model'])
 
-        console.print("[blue italic]Lendo os arquivos para tradução...")
+        console.print("[white italic]Lendo os arquivos para tradução...")
         with console.status("[green italic]Processando...", spinner="dots"):
             original_subtitles_text = read_text_file(original_subtitle_path)
             prompt = read_text_file(prompt_path)
             context = read_text_file(context_path)
             console.print()
 
-        console.print("[blue italic]Dividindo a legenda em blocos...")
+        console.print("[white italic]Dividindo a legenda em blocos...")
         with console.status("[green italic]Processando...", spinner="dots"):
             original_subtitles = read_subtitle_file(original_subtitles_text)
             original_subtitle_chunks = split_subtitles(original_subtitles, size=params['size'])
 
-        console.print("[blue italic]Traduzindo os blocos da legenda...")
+        console.print("[white italic]Traduzindo os blocos da legenda...")
         with console.status("[green italic]Processando...", spinner="dots"):
             translated_subtitles = translate_chunk_text(original_subtitle_chunks, prompt, context)
 
-        console.print("[blue italic]Salvando a legenda...")
+        console.print("[white italic]Salvando a legenda...")
         with console.status("[green italic]Processando...", spinner="dots"):
             subtitles = split_long_segments(translated_subtitles, max_words=params['max_words'])
             save_subtitle(subtitles, translated_subtitle_path)
 
-        console.print("[bold blue]Legenda criada com sucesso.\n")
+        console.print("[white bold]Legenda criada com sucesso.\n")
     except Exception as e:
-        console.print(f"[red]{e}\n")
+        console.print(f"[red italic]{e}\n")
     finally:
         remove_file(audio_temp_path)
 
