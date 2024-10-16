@@ -228,7 +228,7 @@ def generate_messages(subtitles, prompt, context):
 
 def translate_text(messages):
     try:
-        response = client .chat.completions.create(
+        response = client.chat.completions.create(
             model=params["gpt_model"], \
             messages=messages, \
             temperature=params["temperature"], \
