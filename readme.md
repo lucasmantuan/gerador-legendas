@@ -99,7 +99,7 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
 - `contexto.txt`: Arquivo contendo o contexto adicional para a tradução.
 
 ## Roadmap
-- Identificar multiplas vozes em um mesmo vídeo.
+- Identificar múltiplas vozes em um mesmo vídeo.
 - Dividir legendas grandes em segmentos menores.
 - Utilizar modelos locais de tradução.
 - Gerar as legendas em tempo real.
