@@ -23,16 +23,31 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
    ```bash
    sudo apt update
    sudo apt install python3 python3-venv
+   python --version
    ```
 
 - Certifique-se de ter o ffmpeg instalado:
    ```bash
    sudo apt install ffmpeg
+   ffmpeg -version
    ```
 
 - Instale o CUDA Toolkit para acelerar o modelo Whisper com a GPU.
    ```bash
    https://developer.nvidia.com/cuda-downloads
+   ```
+
+- Adicione o diretório `bin` e `lib64` do CUDA Toolkit no arquivo `.bashrc`:
+   ```bash
+   export PATH=/usr/local/cuda-12.6/bin:$PATH
+   export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64/:$LD_LIBRARY_PATH
+   ```
+
+- Recarregue o arquivo `.bashrc` e teste a instalação do CUDA Toolkit:
+   ```bash
+   source ~/.bashrc
+   nvcc --version
+   nvidia-smi
    ```
 
 - Clone o repositório:
@@ -41,7 +56,7 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
    cd gerador-legendas
    ```
 
-- Crie um ambiente virtual:
+- Crie um ambiente virtual no diretório criado:
    ```bash
    python -m venv .venv
    source .venv/bin/activate
@@ -52,12 +67,7 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
    pip install -r requirements.txt
    ```
 
-- Baixe o modelo Whisper que será usado para transcrição:
-   ```bash
-   whisper large-v3-turbo
-   ```
-
-- Crie um arquivo de configuração `config.ini` no diretório raiz com a sua chave de API da OpenAI:
+- Crie `api.ini` no diretório raiz com a sua chave de API da OpenAI:
    ```bash
    [DEFAULT]
    api_key=sua-chave-api
@@ -69,10 +79,11 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
     chmod +x main.py
     ./main.py -i <video> -p <prompt> -c <contexto>
     ```
+    
 ### Argumentos
-- `-i`: Caminho para o arquivo de vídeo.
-- `-p`: Caminho para o arquivo contendo o prompt para tradução.
-- `-c`: Caminho para o arquivo contendo o contexto para tradução.
+- `-i`: Caminho para o arquivo de vídeo que será gerada a legenda.
+- `-p`: Caminho para o prompt que será utilizado na tradução.
+- `-c`: Caminho para o arquivo contendo o contexto da tradução.
 
 ### Exemplo de uso
 ```bash
@@ -80,10 +91,10 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
 ```
 
 ## Estrutura do Projeto
-- `main.py`: Arquivo principal que coordena todo o fluxo de trabalho.
+- `main.py`: Arquivo principal que coordena todo o fluxo da aplicação.
 - `api.ini`: Arquivo de configuração contendo a chave da API.
-- `config.ini`: Arquivo de configuração contendo os parâmetros da aplicação.
-- `requirements.txt`: Lista de dependências.
+- `params.ini`: Arquivo de configuração contendo os parâmetros da aplicação.
+- `requirements.txt`: Lista de dependências utilizadas.
 - `prompt.txt`: Arquivo contendo o prompt utilizado para tradução.
 - `contexto.txt`: Arquivo contendo o contexto adicional para a tradução.
 

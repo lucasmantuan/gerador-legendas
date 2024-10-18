@@ -320,7 +320,7 @@ def main():
         context_path = args.context_path
         prompt_path = args.prompt_path
         original_subtitle_path = os.path.splitext(video_path)[0] + ".original.srt"
-        translated_subtitle_path = os.path.splitext(video_path)[0] + ".translated.srt"
+        translated_subtitle_path = os.path.splitext(video_path)[0] + ".srt"
 
         console.print("\n[white bold]Iniciando a criação da legenda.\n")
 
