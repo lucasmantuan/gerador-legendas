@@ -90,15 +90,15 @@ def extract_audio(video_path, audio_path):
 
 def transcribe_audio(audio_path, subtitle_path, model_name):
     try:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = whisper.load_model(model_name).to(device)
-        transcription = model.transcribe(audio_path, task="transcribe", word_timestamps=True)
-        writer_options = {
-            "max_line_width": params["max_line_width"],
-            "max_line_count": params["max_line_count"]
-        }
-        writer = whisper.utils.get_writer("srt", ".")
-        writer(transcription, subtitle_path, writer_options)
+        # device = "cuda" if torch.cuda.is_available() else "cpu"
+        # model = whisper.load_model(model_name).to(device)
+        # transcription = model.transcribe(audio_path, task="transcribe", word_timestamps=True)
+        # writer_options = {
+        #     "max_line_width": params["max_line_width"],
+        #     "max_line_count": params["max_line_count"]
+        # }
+        # writer = whisper.utils.get_writer("srt", ".")
+        # writer(transcription, subtitle_path, writer_options)
         subtitle_text = read_text_file(subtitle_path)
         subtitle_list = read_subtitle_file(subtitle_text)
         adjusted_subtitles = adjust_segment_punctuation(subtitle_list, words_split=params["words_split"])
@@ -154,9 +154,9 @@ def adjust_segment_punctuation(segments, words_split):
             end_punctuation = {'.', '!', '?'}
             index = None
             # Percorre o laço de trás para frente para encontrar a última pontuação final
-            for i in range(len(words) - 1, -1, -1):
-                if words[i][-1] in end_punctuation:
-                    index = i
+            for j in range(len(words) - 1, -1, -1):
+                if words[j][-1] in end_punctuation:
+                    index = j
                     break
             if index is not None:
                 # Verifica se o número de palavras após a última pontuação final é menor que o número especificado
