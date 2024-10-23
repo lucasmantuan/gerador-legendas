@@ -23,7 +23,7 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
    ```bash
    sudo apt update
    sudo apt install python3 python3-venv
-   python --version
+   python3 --version
    ```
 
 - Certifique-se de ter o ffmpeg instalado:
@@ -58,7 +58,7 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
 
 - Crie um ambiente virtual no diretório criado:
    ```bash
-   python -m venv .venv
+   python3 -m venv .venv
    source .venv/bin/activate
    ```
    
