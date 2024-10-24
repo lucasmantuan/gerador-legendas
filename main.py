@@ -124,6 +124,7 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
         raise RuntimeError("Erro ao transcrever o áudio.") from e
 
 
+# Função não utilizada nesta versão do gerador de legendas
 def merge_short_segments(segments, words_split):
     try:
         merged_segments = []
@@ -231,6 +232,7 @@ def adjust_segment_punctuation(segments, words_split):
         raise RuntimeError("Erro ao ajustar os segmentos.") from e
 
 
+# Função não utilizada nesta versão do gerador de legendas
 def remove_repeated_words(segments, words_to_limit):
     try:
         adjusted_segments = []
