@@ -202,13 +202,18 @@ def adjust_segment_punctuation(segments, words_split):
             next_segment = segments[i + 1]
             words = segment['text'].strip().split()
             # Conjunto de pontuações que indicam o final de uma frase
-            end_punctuation = {'.', '!', '?', ','}
+            end_punctuation = {'.', '!', '?'}
+            separete_punctuation = {','}
             index = None
-            # Percorre o laço de trás para frente para encontrar a última pontuação final
             for j in range(len(words) - 1, -1, -1):
                 if words[j][-1] in end_punctuation:
                     index = j
                     break
+            if index is None:
+                for j in range(len(words) - 1, -1, -1):
+                    if words[j][-1] in separete_punctuation:
+                        index = j
+                        break
             if index is not None:
                 # Verifica se o número de palavras após a última pontuação final é menor que o número especificado
                 num_words_after = len(words) - index - 1
@@ -273,19 +278,26 @@ def split_subtitles(subtitles, size, offset=params["chunk_offset"]):
         current_chunk = []
         current_size = 0
         # Conjunto de pontuações que indicam o final de uma frase
-        end_punctuation = {'.', '!', '?', ','}
+        end_punctuation = {'.', '!', '?'}
+        separete_punctuation = {','}
         for subtitle in subtitles:
             current_chunk.append(subtitle)
             current_size += 1
             # Verifica se o tamanho do bloco atual é maior ou igual ao tamanho especificado
             if current_size >= size:
                 last_subtitle_text = subtitle['text'].strip()
-                # Verifica se o último caractere do último subtítulo é uma pontuação final
+                last_char = last_subtitle_text[-1] if last_subtitle_text else ""
+                # Verifica se o último caractere do último subtítulo pertence a end punctuation
                 if last_subtitle_text and last_subtitle_text[-1] in end_punctuation:
                     chunks.append(current_chunk)
                     current_chunk = []
                     current_size = 0
-                # Força a criação de um novo bloco mesmo que o último caractere não seja uma pontuação final
+                # Verifica se o último caractere do último subtítulo pertence a separete punctuation
+                elif last_char in separete_punctuation:
+                    chunks.append(current_chunk)
+                    current_chunk = []
+                    current_size = 0
+                # Força a criação de um novo bloco mesmo independente da pontuação
                 elif current_size >= size + offset:
                     chunks.append(current_chunk)
                     current_chunk = []
