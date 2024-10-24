@@ -50,7 +50,8 @@ params = {
     "max_line_count": params_config.getint('DEFAULT', 'max_line_count'),
     "gpt_model": params_config['DEFAULT']['gpt_model'],
     "gpt_temperature": params_config.getfloat('DEFAULT', 'gpt_temperature'),
-    "whisper_model": params_config['DEFAULT']['whisper_model']
+    "whisper_model": params_config['DEFAULT']['whisper_model'],
+    "whisper_language": params_config['DEFAULT']['whisper_language']
 }
 
 
@@ -79,7 +80,7 @@ def extract_audio(video_path, audio_path):
             '-i', video_path, \
             '-vn', \
             '-acodec', 'pcm_s16le', \
-            '-ar', '44100', \
+            '-ar', '16000', \
             audio_path
         ]
         subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -92,7 +93,21 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
     try:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         model = whisper.load_model(model_name).to(device)
-        transcription = model.transcribe(audio_path, task="transcribe", word_timestamps=True)
+        transcription = model.transcribe(
+            audio_path, \
+            task="transcribe", \
+            language=params["whisper_language"], \
+            word_timestamps=True
+        )
+
+        # segments = merge_short_segments(transcription['segments'], words_split=params['words_split'])
+        # with open(subtitle_path, "w", encoding=params["encoding_type"]) as f:
+        #     for i, segment in enumerate(segments):
+        #         start = format_timestamp(segment['start'])
+        #         end = format_timestamp(segment['end'])
+        #         text = segment['text'].strip()
+        #         f.write(f"{i+1}\n{start} --> {end}\n{text}\n\n")
+
         writer_options = {
             "max_line_width": params["max_line_width"],
             "max_line_count": params["max_line_count"]
@@ -107,6 +122,41 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
     except Exception as e:
         print(e)
         raise RuntimeError("Erro ao transcrever o áudio.") from e
+
+
+def merge_short_segments(segments, words_split):
+    try:
+        merged_segments = []
+        i = 0
+        while i < len(segments):
+            segment = segments[i]
+            words = segment['text'].strip().split()
+            # Verifica se o numero de palavras é menor que o minimo especificado
+            if len(words) < words_split:
+                print(words)
+                # Verifica se há um próximo segmento disponível para mesclar
+                if i + 1 < len(segments):
+                    next_segment = segments[i + 1]
+                    # Combina o texto do segmento atual com o próximo segmento
+                    combined_text = segment['text'].strip() + ' ' + next_segment['text'].strip()
+                    # Cria um novo segmento com o tempo inicial do atual e o tempo final do próximo
+                    combined_segment = {
+                        'start': segment['start'],
+                        'end': next_segment['end'],
+                        'text': combined_text
+                    }
+                    merged_segments.append(combined_segment)
+                    # Pula para o segmento após o próximo segmento, pois os anteriores foram mesclados
+                    i += 2
+                else:
+                    merged_segments.append(segment)
+                    i += 1
+            else:
+                merged_segments.append(segment)
+                i += 1
+        return merged_segments
+    except Exception as e:
+        raise RuntimeError("Erro ao mesclar as legendas curtas.") from e
 
 
 def read_text_file(file_path):
@@ -151,7 +201,7 @@ def adjust_segment_punctuation(segments, words_split):
             next_segment = segments[i + 1]
             words = segment['text'].strip().split()
             # Conjunto de pontuações que indicam o final de uma frase
-            end_punctuation = {'.', '!', '?'}
+            end_punctuation = {'.', '!', '?', ','}
             index = None
             # Percorre o laço de trás para frente para encontrar a última pontuação final
             for j in range(len(words) - 1, -1, -1):
@@ -181,6 +231,30 @@ def adjust_segment_punctuation(segments, words_split):
         raise RuntimeError("Erro ao ajustar os segmentos.") from e
 
 
+def remove_repeated_words(segments, words_to_limit):
+    try:
+        adjusted_segments = []
+        for segment in segments:
+            words = segment['text'].strip().split()
+            # Armazena as ocorrências de palavras relevantes
+            word_count = {}
+            new_text = []
+            for word in words:
+                # Conta as palavras relevantes e limita a primeira ocorrência
+                if word in words_to_limit:
+                    if word not in word_count:
+                        word_count[word] = 1
+                        new_text.append(word)
+                else:
+                    new_text.append(word)
+            # Atualiza o texto do segmento com as palavras relevantes limitadas
+            segment['text'] = ' '.join(new_text)
+            adjusted_segments.append(segment)
+        return adjusted_segments
+    except Exception as e:
+        raise RuntimeError("Erro ao remover palavras repetidas.") from e
+
+
 def save_subtitle(subtitles, file_path):
     try:
         with open(file_path, 'w', encoding=params["encoding_type"]) as f:
@@ -197,7 +271,7 @@ def split_subtitles(subtitles, size, offset=params["chunk_offset"]):
         current_chunk = []
         current_size = 0
         # Conjunto de pontuações que indicam o final de uma frase
-        end_punctuation = {'.', '!', '?'}
+        end_punctuation = {'.', '!', '?', ','}
         for subtitle in subtitles:
             current_chunk.append(subtitle)
             current_size += 1
