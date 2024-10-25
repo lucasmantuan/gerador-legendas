@@ -99,15 +99,6 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
             language=params["whisper_language"], \
             word_timestamps=True
         )
-
-        # segments = merge_short_segments(transcription['segments'], words_split=params['words_split'])
-        # with open(subtitle_path, "w", encoding=params["encoding_type"]) as f:
-        #     for i, segment in enumerate(segments):
-        #         start = format_timestamp(segment['start'])
-        #         end = format_timestamp(segment['end'])
-        #         text = segment['text'].strip()
-        #         f.write(f"{i+1}\n{start} --> {end}\n{text}\n\n")
-
         writer_options = {
             "max_line_width": params["max_line_width"],
             "max_line_count": params["max_line_count"]
@@ -116,45 +107,38 @@ def transcribe_audio(audio_path, subtitle_path, model_name):
         writer(transcription, subtitle_path, writer_options)
         subtitle_text = read_text_file(subtitle_path)
         subtitle_list = read_subtitle_file(subtitle_text)
-        adjusted_subtitles = adjust_segment_punctuation(subtitle_list, words_split=params["words_split"])
-        save_subtitle(adjusted_subtitles, subtitle_path)
+        adjusted_subtitles = adjust_segments_punctuation(subtitle_list, words_split=params["words_split"])
+        merged_subtitles = merge_short_segments(adjusted_subtitles, words_split=params["words_split"])
+        save_subtitle(merged_subtitles, subtitle_path)
         console.print(f"[cyan]Transcrição do áudio gerada com sucesso.\n")
     except Exception as e:
-        print(e)
         raise RuntimeError("Erro ao transcrever o áudio.") from e
 
 
-# Função não utilizada nesta versão do gerador de legendas
 def merge_short_segments(segments, words_split):
     try:
-        merged_segments = []
-        i = 0
-        while i < len(segments):
+        merged_segments = [segments[0]]
+        # Itera sobre os segmentos a partir do segundo
+        for i in range(1, len(segments)):
             segment = segments[i]
             words = segment['text'].strip().split()
-            # Verifica se o numero de palavras é menor que o minimo especificado
-            if len(words) < words_split:
-                print(words)
-                # Verifica se há um próximo segmento disponível para mesclar
-                if i + 1 < len(segments):
-                    next_segment = segments[i + 1]
-                    # Combina o texto do segmento atual com o próximo segmento
-                    combined_text = segment['text'].strip() + ' ' + next_segment['text'].strip()
-                    # Cria um novo segmento com o tempo inicial do atual e o tempo final do próximo
-                    combined_segment = {
-                        'start': segment['start'],
-                        'end': next_segment['end'],
-                        'text': combined_text
-                    }
-                    merged_segments.append(combined_segment)
-                    # Pula para o segmento após o próximo segmento, pois os anteriores foram mesclados
-                    i += 2
-                else:
-                    merged_segments.append(segment)
-                    i += 1
+            # Verifica se o número de palavras é menor que o número especificado
+            if len(words) <= words_split:
+                # Mescla o segmento atual com o anterior
+                prev_segment = merged_segments[-1]
+                # Combina o texto dos segmentos
+                combined_text = prev_segment['text'].strip() + ' ' + segment['text'].strip()
+                prev_start_time, prev_end_time = prev_segment['time'].split(' --> ')
+                current_start_time, current_end_time = segment['time'].split(' --> ')
+                # Atualiza o tempo do segmento anterior com o tempo do segmento atual
+                combined_time = f"{prev_start_time} --> {current_end_time}"
+                prev_segment['time'] = combined_time
+                prev_segment['text'] = combined_text
             else:
                 merged_segments.append(segment)
-                i += 1
+        # Atualiza os índices dos segmentos após a mesclagem
+        for idx, segment in enumerate(merged_segments, start=1):
+            segment['index'] = str(idx)
         return merged_segments
     except Exception as e:
         raise RuntimeError("Erro ao mesclar as legendas curtas.") from e
@@ -193,7 +177,18 @@ def format_timestamp(seconds):
         raise RuntimeError("Erro ao formatar o timestamp.") from e
 
 
-def adjust_segment_punctuation(segments, words_split):
+def adjust_segments_punctuation(segments, words_split):
+    try:
+        # Ajustar os segmentos com pontuação de fim de frase
+        segments = handle_punctuation_adjustment(segments, words_split, end_punctuation={'.', '!', '?'})
+        # Ajusta os segmentos com com vírgula
+        segments = handle_punctuation_adjustment(segments, words_split, end_punctuation={','})
+        return segments
+    except Exception as e:
+        raise RuntimeError("Erro ao ajustar os segmentos.") from e
+
+
+def handle_punctuation_adjustment(segments, words_split, end_punctuation):
     try:
         adjusted_segments = []
         i = 0
@@ -201,23 +196,15 @@ def adjust_segment_punctuation(segments, words_split):
             segment = segments[i]
             next_segment = segments[i + 1]
             words = segment['text'].strip().split()
-            # Conjunto de pontuações que indicam o final de uma frase
-            end_punctuation = {'.', '!', '?'}
-            separete_punctuation = {','}
             index = None
             for j in range(len(words) - 1, -1, -1):
                 if words[j][-1] in end_punctuation:
                     index = j
                     break
-            if index is None:
-                for j in range(len(words) - 1, -1, -1):
-                    if words[j][-1] in separete_punctuation:
-                        index = j
-                        break
             if index is not None:
                 # Verifica se o número de palavras após a última pontuação final é menor que o número especificado
                 num_words_after = len(words) - index - 1
-                if num_words_after < words_split:
+                if num_words_after <= words_split:
                     # Extrair as palavras a serem movidas para o próximo segmento
                     words_to_move = words[index + 1:]
                     remaining_words = words[:index + 1]
@@ -230,7 +217,6 @@ def adjust_segment_punctuation(segments, words_split):
                     segments[i + 1] = next_segment
             adjusted_segments.append(segments[i])
             i += 1
-        # Adicionar o último segmento na lista de segmentos ajustados
         adjusted_segments.append(segments[-1])
         return adjusted_segments
     except Exception as e:
@@ -272,36 +258,36 @@ def save_subtitle(subtitles, file_path):
         raise RuntimeError("Erro ao salvar a legenda.") from e
 
 
-def split_subtitles(subtitles, size, offset=params["chunk_offset"]):
+def split_subtitles(subtitles, size, offset):
     try:
         chunks = []
         current_chunk = []
-        current_size = 0
+        current_chunk_size = 0
         # Conjunto de pontuações que indicam o final de uma frase
         end_punctuation = {'.', '!', '?'}
         separete_punctuation = {','}
         for subtitle in subtitles:
             current_chunk.append(subtitle)
-            current_size += 1
+            current_chunk_size += 1
             # Verifica se o tamanho do bloco atual é maior ou igual ao tamanho especificado
-            if current_size >= size:
+            if current_chunk_size >= size:
                 last_subtitle_text = subtitle['text'].strip()
                 last_char = last_subtitle_text[-1] if last_subtitle_text else ""
                 # Verifica se o último caractere do último subtítulo pertence a end punctuation
                 if last_subtitle_text and last_subtitle_text[-1] in end_punctuation:
                     chunks.append(current_chunk)
                     current_chunk = []
-                    current_size = 0
+                    current_chunk_size = 0
                 # Verifica se o último caractere do último subtítulo pertence a separete punctuation
                 elif last_char in separete_punctuation:
                     chunks.append(current_chunk)
                     current_chunk = []
-                    current_size = 0
+                    current_chunk_size = 0
                 # Força a criação de um novo bloco mesmo independente da pontuação
-                elif current_size >= size + offset:
+                elif current_chunk_size >= size + offset:
                     chunks.append(current_chunk)
                     current_chunk = []
-                    current_size = 0
+                    current_chunk_size = 0
         if current_chunk:
             chunks.append(current_chunk)
         console.print(f"[cyan]Legendas divididas com sucesso.\n")
@@ -374,7 +360,6 @@ def translate_text(messages):
             translated_text = translated_text.rsplit('```', 1)[0]
         return translated_text
     except Exception as e:
-        print(e)
         raise RuntimeError("Erro ao traduzir o bloco da legenda.") from e
 
 
@@ -446,7 +431,9 @@ def main():
         console.print("[white italic]Dividindo a legenda em blocos...")
         with console.status("[green italic]Processando...", spinner="dots"):
             original_subtitles = read_subtitle_file(original_subtitles_text)
-            original_subtitle_chunks = split_subtitles(original_subtitles, size=params['chunk_size'])
+            original_subtitle_chunks = split_subtitles(
+                original_subtitles, size=params['chunk_size'], offset=params['chunk_offset']
+            )
 
         console.print("[white italic]Traduzindo os blocos da legenda...")
         with console.status("[green italic]Processando...", spinner="dots"):
