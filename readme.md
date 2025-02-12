@@ -1,14 +1,13 @@
 # Gerador e Tradutor de Legendas
-Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de vídeos, gera transcrições usando o modelo Whisper e traduz as legendas usando a API da OpenAI. O programa é capaz de mesclar segmentos curtos de legenda, dividir segmentos longos e ajustar automaticamente as legendas em blocos de texto coerentes.
+Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de vídeos, gera transcrições usando o modelo Whisper e traduz as legendas usando a API da OpenAI. O programa ajusta automaticamente as legendas em blocos de texto coerentes.
 
 ## Funcionalidades
 - Transcreve o áudio para criar legendas no formato `.srt` usando a biblioteca Whisper.
-- Combina segmentos de legenda que têm menos palavras do que o limite mínimo especificado para melhorar a legibilidade.
-- Divide segmentos de legenda que têm mais palavras do que o limite máximo especificado em várias linhas.
+- Ajusta os segmentos das legendas com base na pontuação para melhorar a legibilidade.
 - Usa a API da OpenAI para traduzir os blocos de legendas, seguindo um prompt e contexto fornecidos.
 
 ## Requisitos
-- Python 3.8 ou superior
+- Python 3.10.1
 - Dependências listadas no arquivo `requirements.txt`
 
 ### Principais Bibliotecas Usadas
@@ -39,8 +38,8 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
 
 - Adicione o diretório `bin` e `lib64` do CUDA Toolkit no arquivo `.bashrc`:
    ```bash
-   export PATH=/usr/local/cuda-12.6/bin:$PATH
-   export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64/:$LD_LIBRARY_PATH
+   export PATH=/usr/local/<cuda>/bin:$PATH
+   export LD_LIBRARY_PATH=/usr/local/<cuda>/lib64/:$LD_LIBRARY_PATH
    ```
 
 - Recarregue o arquivo `.bashrc` e teste a instalação do CUDA Toolkit:
@@ -77,7 +76,7 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
 - Execute o programa com o seguinte comando:
     ```bash
     chmod +x main.py
-    ./main.py -i <video> -p <prompt> -c <contexto>
+    ./main.py -i <video> -p <prompt>
     ```
     
 ### Argumentos
@@ -85,25 +84,17 @@ Este projeto é um **Gerador e Tradutor de Legendas** que extrai áudio de víde
 - `-p`: Caminho para o prompt que será utilizado na tradução.
 - `-c`: Caminho para o arquivo contendo o contexto da tradução.
 
-### Exemplo de uso
-```bash
-./main.py -i video.mp4 -p prompt.txt -c contexto.txt
-```
-
 ## Estrutura do Projeto
 - `main.py`: Arquivo principal que coordena todo o fluxo da aplicação.
 - `api.ini`: Arquivo de configuração contendo a chave da API.
 - `params.ini`: Arquivo de configuração contendo os parâmetros da aplicação.
 - `requirements.txt`: Lista de dependências utilizadas.
 - `prompt.txt`: Arquivo contendo o prompt utilizado para tradução.
-- `contexto.txt`: Arquivo contendo o contexto adicional para a tradução.
 
 ## Roadmap
 - Melhorar a qualidade do áudio extraído.
-- Dividir legendas grandes em segmentos menores.
 - Utilizar modelos locais de tradução.
 - Gerar as legendas em tempo real.
-- Criar uma interface gráfica para a aplicação.
 
 ## Licença
 Este projeto está sob a licença ...
