@@ -68,18 +68,21 @@ def parse_args():
 
 
 def extract_audio(video_path, audio_path):
+    command = [
+        'ffmpeg', \
+        '-y', \
+        '-i', video_path, \
+        '-vn', \
+        '-acodec', 'pcm_s16le', \
+        '-ar', '16000', \
+        audio_path
+    ]
     try:
-        command = [
-            'ffmpeg', \
-            '-y', \
-            '-i', video_path, \
-            '-vn', \
-            '-acodec', 'pcm_s16le', \
-            '-ar', '16000', \
-            audio_path
-        ]
-        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        console.print(f"[cyan]Áudio extraído com sucesso.\n")
+        with subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
+            retcode = process.wait()
+            if retcode != 0:
+                raise RuntimeError("Erro ao extrair o áudio.") from e
+        console.print("[cyan]Áudio extraído com sucesso.\n")
     except Exception as e:
         raise RuntimeError("Erro ao extrair o áudio.") from e
 
@@ -100,7 +103,7 @@ def transcribe_audio(audio_path, subtitle_path, model_name, min_words_segment, m
         # }
         # writer = whisper.utils.get_writer("srt", ".")
         # writer(transcription, subtitle_path, writer_options)
-        subtitle = adjust_segments_punctuation(transcription, min_words_segment, max_threshold_words)
+        subtitle = adjust_subtitle_segments(transcription, min_words_segment, max_threshold_words)
         save_subtitle(subtitle, subtitle_path)
         console.print(f"[cyan]Transcrição do áudio gerada com sucesso.\n")
     except Exception as e:
@@ -116,7 +119,7 @@ def read_text_file(file_path):
         raise RuntimeError("Erro ao ler o arquivo.") from e
 
 
-def read_subtitle_file(single_subtitle):
+def parse_subtitles(single_subtitle):
     try:
         pattern = re.compile(
             r'(\d+)\s*\n'
@@ -131,26 +134,20 @@ def read_subtitle_file(single_subtitle):
         raise RuntimeError("Erro ao ler o conteúdo das legendas.") from e
 
 
-def format_timestamp(seconds):
-    try:
-        hours = int(seconds // 3600)
-        minutes = int((seconds%3600) // 60)
-        secs = int(seconds % 60)
-        msecs = int(round((seconds - int(seconds)) * 1000))
+def adjust_subtitle_segments(subtitle_segments, min_words_segment, threshold_words):
+    def format_timestamp(seconds):
+        total_milliseconds = round(seconds * 1000)
+        total_seconds, msecs = divmod(total_milliseconds, 1000)
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, secs = divmod(remainder, 60)
         return f"{hours:02d}:{minutes:02d}:{secs:02d},{msecs:03d}"
-    except Exception as e:
-        raise RuntimeError("Erro ao formatar o timestamp.") from e
 
+    def contains_punctuation(ponctuation):
+        return ponctuation and ponctuation[-1] in punctuation_marks
 
-def adjust_segments_punctuation(subtitle_segments, min_words_segment, threshold_words):
     try:
         punctuation_marks = {'.', '!', '?', ','}
         unified_words = []
-
-        # Função para verificar se a palavra contém algum dos sinais de pontuação
-        def contains_punctuation(ponctuation):
-            return ponctuation and ponctuation[-1] in punctuation_marks
-
         # Unifica todas as palavras em uma lista única de palavras contendo o tempo de início e fim de cada palavra
         for segment in subtitle_segments['segments']:
             for word in segment['words']:
@@ -158,62 +155,50 @@ def adjust_segments_punctuation(subtitle_segments, min_words_segment, threshold_
                 word_end_time = float(word['end'])
                 processed_word = word['word'].strip()
                 unified_words.append({'word': processed_word, 'start': word_start_time, 'end': word_end_time})
-
-        # Percorre todas as palavras unificadas para criar os segmentos de legenda
         index = 0
-        subtitle_segments = []
+        adjusted_segments = []
         subtitle_index = 1
         total_words_count = len(unified_words)
-
+        # Percorre todas as palavras unificadas para criar os segmentos de legenda
         while index < total_words_count:
             # Verifica se existe um bloco de palavras suficiente para criar um segmento
             initial_block = index
             default_final_block = index + min_words_segment - 1
-
             # Se não houver palavras suficientes para criar um segmento, encerra o loop
             if default_final_block >= total_words_count:
                 default_final_block = total_words_count - 1
-
             # Define que o bloco final do segmento será o bloco final padrão
             final_segment = default_final_block
-
             # Define os limites para olhar a quantidade de palavras antes e depois
             start_window = max(index + min_words_segment - 1 - threshold_words, index)
             end_window = min(index + min_words_segment - 1 + threshold_words, total_words_count - 1)
-
             # Procura alguma pontuação no bloco de palavras, cortando o segmento se houver pontuação
             has_punctuation = False
-
             # Checa inicialmente as palavras a frente
             for position in range(default_final_block, end_window + 1):
                 if contains_punctuation(unified_words[position]['word']):
                     final_segment = position
                     has_punctuation = True
                     break
-
             # Em seguida, se não enconrou, checa as palavras para trás
             if not has_punctuation:
                 for position in range(default_final_block, start_window - 1, -1):
                     if contains_punctuation(unified_words[position]['word']):
                         final_segment = position
                         break
-
             # Monta o texto e o tempo do segmento
             segment_words = unified_words[initial_block:final_segment + 1]
             segment_text = " ".join([p['word'] for p in segment_words]).strip()
             start_time = segment_words[0]['start']
             end_time = segment_words[-1]['end']
-
-            subtitle_segments.append({
+            adjusted_segments.append({
                 'index': subtitle_index,
                 'time': f"{format_timestamp(start_time)} --> {format_timestamp(end_time)}",
                 'text': segment_text
             })
-
             subtitle_index += 1
             index = final_segment + 1
-
-        return subtitle_segments
+        return adjusted_segments
     except Exception as e:
         raise RuntimeError("Erro ao ajustar os segmentos de legenda.") from e
 
@@ -228,28 +213,58 @@ def save_subtitle(subtitles, file_path):
         raise RuntimeError("Erro ao salvar a legenda.") from e
 
 
+# def split_subtitles(subtitles, size, offset):
+#     try:
+#         chunks = []
+#         current_chunk = []
+#         # Conjunto de pontuações que indicam o final de uma frase
+#         end_punctuation = {'.', '!', '?'}
+#         separate_punctuation = {','}
+#         for subtitle in subtitles:
+#             current_chunk.append(subtitle)
+#             # Verifica se o tamanho do bloco atual é maior ou igual ao tamanho especificado
+#             if len(current_chunk) >= size:
+#                 last_subtitle_text = subtitle.get('text', '').strip()
+#                 last_char = last_subtitle_text[-1] if last_subtitle_text else ""
+#                 # Verifica se o último caractere do último subtítulo pertence a end_punctuation
+#                 if last_char in end_punctuation or last_char in separate_punctuation:
+#                     chunks.append(current_chunk)
+#                     current_chunk = []
+#                 # Força a criação de um novo bloco mesmo independente da pontuação
+#                 elif len(current_chunk) >= size + offset:
+#                     chunks.append(current_chunk)
+#                     current_chunk = []
+#         # Adiciona qualquer bloco restante
+#         if current_chunk:
+#             chunks.append(current_chunk)
+#         console.print("Legendas divididas com sucesso.")
+#         return chunks
+#     except Exception as e:
+#         raise RuntimeError("Erro ao dividir as legendas.") from e
+
+
 def split_subtitles(subtitles, size, offset):
     try:
         chunks = []
         current_chunk = []
-        # Conjunto de pontuações que indicam o final de uma frase
-        end_punctuation = {'.', '!', '?'}
-        separate_punctuation = {','}
+        # Conjunto de pontuações que indicam o final de uma frase ou uma pausa adequada
+        valid_punctuation = {'.', '!', '?', ','}
         for subtitle in subtitles:
             current_chunk.append(subtitle)
-            # Verifica se o tamanho do bloco atual é maior ou igual ao tamanho especificado
+            # Verifica se o bloco atual atingiu o tamanho mínimo para avaliação
             if len(current_chunk) >= size:
-                last_subtitle_text = subtitle.get('text', '').strip()
-                last_char = last_subtitle_text[-1] if last_subtitle_text else ""
-                # Verifica se o último caractere do último subtítulo pertence a end_punctuation
-                if last_char in end_punctuation or last_char in separate_punctuation:
+                # Obtém o último caractere do texto do último subtítulo do bloco
+                subtitle_text = subtitle.get('text', '').strip()
+                last_char = subtitle_text[-1] if subtitle_text else ""
+                # Se o último caractere indicar o fim de uma frase ou for uma pausa adequada
+                if last_char in valid_punctuation:
                     chunks.append(current_chunk)
                     current_chunk = []
-                # Força a criação de um novo bloco mesmo independente da pontuação
+                # Se o bloco estiver maior que o tamanho mínimo acrescido do offset, força a divisão
                 elif len(current_chunk) >= size + offset:
                     chunks.append(current_chunk)
                     current_chunk = []
-        # Adiciona qualquer bloco restante
+        # Adiciona qualquer bloco restante que não tenha sido fechado
         if current_chunk:
             chunks.append(current_chunk)
         console.print("Legendas divididas com sucesso.")
@@ -270,7 +285,7 @@ def translate_chunk_text(subtitle_chunks, prompt):
             chunk_prompt = prompt.format(blocks=blocks)
             messages = generate_messages(chunk_text, chunk_prompt)
             translated_chunk_text = translate_text(messages)
-            translated_chunk = read_subtitle_file(translated_chunk_text)
+            translated_chunk = parse_subtitles(translated_chunk_text)
             translated_subtitles.extend(translated_chunk)
         console.print(f"[cyan]Blocos traduzidos com sucesso.\n")
         return translated_subtitles
@@ -279,6 +294,16 @@ def translate_chunk_text(subtitle_chunks, prompt):
 
 
 def generate_messages(subtitles, prompt):
+    def generate_user_message(subtitle):
+        content = f"{subtitle}\n"
+        user_message = {"role": "user", "content": content}
+        return [user_message]
+
+    def generate_system_message(prompt):
+        content = f"{prompt}\n"
+        system_message = {"role": "system", "content": content}
+        return [system_message]
+
     try:
         user_messages = generate_user_message(subtitles)
         system_message = generate_system_message(prompt)
@@ -288,35 +313,14 @@ def generate_messages(subtitles, prompt):
         raise RuntimeError("Erro ao gerar as mensagens.") from e
 
 
-def generate_user_message(subtitle):
-    try:
-        content = f"{subtitle}\n"
-        user_message = {"role": "user", "content": content}
-        return [user_message]
-    except Exception as e:
-        raise RuntimeError("Erro ao gerar a mensagem do usuário.") from e
-
-
-def generate_system_message(prompt):
-    try:
-        content = f"{prompt}\n"
-        system_message = {"role": "system", "content": content}
-        return [system_message]
-    except Exception as e:
-        raise RuntimeError("Erro ao gerar a mensagem do sistema.") from e
-
-
-def remove_code_block(text):
-    try:
-        if text.startswith('```') and text.endswith('```'):
-            text = text.split('\n', 1)[-1]
-            text = text.rsplit('```', 1)[0]
-        return text.strip()
-    except Exception as e:
-        raise RuntimeError("Erro ao remover o bloco de código.") from e
-
-
 def translate_text(messages):
+    def remove_code_block(text):
+        pattern = r'^```(?:\w+)?\s*\n(.*)\n```$'
+        match = re.match(pattern, text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return text.strip()
+
     try:
         response = client.chat.completions.create(
             model=params["gpt_model"], \
@@ -406,7 +410,7 @@ def main():
 
         console.print("[white italic]Dividindo a legenda em blocos...")
         with console.status("[green italic]Processando...", spinner="dots"):
-            original_subtitles = read_subtitle_file(original_subtitles_text)
+            original_subtitles = parse_subtitles(original_subtitles_text)
             original_subtitle_chunks = split_subtitles( \
                 original_subtitles, \
                 size=params['chunk_size'], \
