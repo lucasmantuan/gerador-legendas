@@ -146,7 +146,7 @@ def adjust_subtitle_segments(subtitle_segments, min_words_segment, threshold_wor
         return ponctuation and ponctuation[-1] in punctuation_marks
 
     try:
-        punctuation_marks = {'.', '!', '?', ','}
+        punctuation_marks = {'.', '!', '?', ',', ';', ':', '-', '—'}
         unified_words = []
         # Unifica todas as palavras em uma lista única de palavras contendo o tempo de início e fim de cada palavra
         for segment in subtitle_segments['segments']:
@@ -248,7 +248,7 @@ def split_subtitles(subtitles, size, offset):
         chunks = []
         current_chunk = []
         # Conjunto de pontuações que indicam o final de uma frase ou uma pausa adequada
-        valid_punctuation = {'.', '!', '?', ','}
+        valid_punctuation = {'.', '!', '?', ',', ';', ':', '-', '—'}
         for subtitle in subtitles:
             current_chunk.append(subtitle)
             # Verifica se o bloco atual atingiu o tamanho mínimo para avaliação
